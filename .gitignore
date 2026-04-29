@@ -1,0 +1,25 @@
+credentials.json
+token.json
+*.token.json
+manifest.jsonl
+manifest-*.jsonl
+config.yaml
+dist/
+*.exe
+*.test
+*.out
+
+# IDE/editor
+.idea/
+.vscode/
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs and temp
+*.log
+*.tmp
+*.swp

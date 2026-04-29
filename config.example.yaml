@@ -1,0 +1,57 @@
+# gdrive-migrate config
+
+# OAuth credentials. Generate these in Google Cloud Console (see README.md).
+auth:
+  credentials_file: credentials.json   # OAuth Client ID (Desktop app)
+  token_file: token.json               # token is saved here after first login
+
+# Google Drive folders: provide either plain ID or full folder URL.
+# URL example: https://drive.google.com/drive/folders/<FOLDER_ID>
+source_folder_id: "PASTE_SOURCE_FOLDER_ID_OR_LINK_HERE"   # Source root folder
+target_folder_id: "PASTE_TARGET_FOLDER_ID_OR_LINK_HERE"   # Target root folder
+
+# What to copy. You can set a path relative to source_folder_id:
+sub_folder: "Project Assets/2026"
+# You can provide multiple sub_folder values separated by comma/; or new lines:
+# sub_folder: "Folder1, Folder2; Project Assets/2026"
+# Or provide IDs directly (then sub_folder may be omitted):
+# sub_folder_id: "1ZzZzZzZ..."
+# You can provide multiple IDs separated by comma/; or new lines:
+# sub_folder_id: "1AAA..., 1BBB...; 1CCC..."
+
+options:
+  # Skip empty folders (including empty subtrees).
+  skip_empty_folders: true
+
+  # Resume after interruption: skip files already marked done in manifest.
+  resume: true
+  manifest_file: manifest.jsonl
+
+  # Parallelism.
+  scan_workers: 16   # tree traversal workers (typically 16-32)
+  copy_workers: 12   # file copy workers
+  list_page_size: 1000  # keep at Drive max for best throughput
+
+  # Pre-flight scan before copy.
+  # false -> scan enabled (default behavior)
+  # true  -> skip scan and start copying immediately
+  skip_scan: true
+
+  # Quick estimate mode (folders/files/bytes) without copying and without target changes.
+  # Can be enabled here or via CLI flag --estimate.
+  estimate_only: false
+
+  # Suffix added to created target sub-folder name.
+  # Example: source "MyFolder" + " Promo Materials" -> target "MyFolder Promo Materials".
+  target_subfolder_postfix: ""
+
+  # Test/simulation modes.
+  dry_run: false           # no copy (with skip_scan=false shows scan+plan)
+  verify_checksums: false  # compare source/target md5 after copy (slower scan/copy)
+  assume_yes: false        # skip confirmation prompts (CI-friendly)
+
+  # Retry with exponential backoff for 429/5xx and rate-limit 403.
+  retry:
+    max_attempts: 8
+    initial_backoff_ms: 500
+    max_backoff_ms: 60000
