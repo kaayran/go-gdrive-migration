@@ -213,6 +213,20 @@ func (c *Client) CopyFile(ctx context.Context, fileID, targetParentID, name stri
 	return out, err
 }
 
+// SetFolderColor updates Drive folder color in #RRGGBB format.
+func (c *Client) SetFolderColor(ctx context.Context, folderID, colorHex string) error {
+	return c.do(ctx, func() error {
+		_, err := c.Svc.Files.Update(folderID, &drive.File{
+			FolderColorRgb: colorHex,
+		}).
+			Fields("id,folderColorRgb").
+			SupportsAllDrives(true).
+			Context(ctx).
+			Do()
+		return err
+	})
+}
+
 // do executes a function with retry logic and exponential backoff.
 func (c *Client) do(ctx context.Context, fn func() error) error {
 	backoff := c.initialBackoff

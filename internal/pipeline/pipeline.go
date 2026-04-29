@@ -19,6 +19,11 @@ import (
 
 // Run executes the full migration pipeline.
 func Run(ctx context.Context, cfg *config.Config) error {
+	colorizer, err := newSourceFolderColorizer(cfg.Options.ChangeColor)
+	if err != nil {
+		return fmt.Errorf("options.change_color: %w", err)
+	}
+
 	fmt.Println("──────────────────────────────────────────────────────────────")
 	fmt.Println(" go-gdrive-migration")
 	fmt.Println("──────────────────────────────────────────────────────────────")
@@ -44,6 +49,9 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	fmt.Printf(" Resume           : %v\n", cfg.Options.Resume)
 	fmt.Printf(" Dry run          : %v\n", cfg.Options.DryRun)
 	fmt.Printf(" Estimate only    : %v\n", cfg.Options.EstimateOnly)
+	if colorizer.enabled {
+		fmt.Printf(" Source color     : in-progress=%s, done=%s\n", colorizer.inProgressLabel, colorizer.doneLabel)
+	}
 	fmt.Printf(" Target postfix   : %q\n", cfg.Options.TargetSubfolderPostfix)
 	fmt.Printf(" Pre-flight scan  : %v\n", cfg.Options.IsScanEnabled())
 	fmt.Println()
@@ -81,7 +89,7 @@ func Run(ctx context.Context, cfg *config.Config) error {
 				fmt.Printf("Sub-folder path: %s\n\n", path)
 			}
 			resumeForJob := cfg.Options.Resume || i > 0
-			if err := runSingleSubFolder(ctx, cfg, client, "", path, i+1, len(subFolders), resumeForJob, reporter); err != nil {
+			if err := runSingleSubFolder(ctx, cfg, client, "", path, i+1, len(subFolders), resumeForJob, reporter, colorizer); err != nil {
 				return err
 			}
 		}
@@ -93,7 +101,7 @@ func Run(ctx context.Context, cfg *config.Config) error {
 			fmt.Printf("Sub-folder ID: %s\n\n", subID)
 		}
 		resumeForJob := cfg.Options.Resume || i > 0
-		if err := runSingleSubFolder(ctx, cfg, client, subID, "", i+1, len(subFolderIDs), resumeForJob, reporter); err != nil {
+		if err := runSingleSubFolder(ctx, cfg, client, subID, "", i+1, len(subFolderIDs), resumeForJob, reporter, colorizer); err != nil {
 			return err
 		}
 	}
@@ -110,6 +118,7 @@ func runSingleSubFolder(
 	jobTotal int,
 	resumeForJob bool,
 	reporter *runReportWriter,
+	colorizer sourceFolderColorizer,
 ) error {
 	fmt.Println("[2/6] Resolving source sub-folder...")
 	subID, err := client.ResolveSubFolder(ctx, cfg.SourceFolderID, subFolderID, subFolderPath)
@@ -137,7 +146,7 @@ func runSingleSubFolder(
 	}
 
 	if !cfg.Options.IsScanEnabled() {
-		return runDirectCopyWithoutScan(ctx, cfg, client, subID, subInfo.Name, targetSubName, requested, resumeForJob, reporter)
+		return runDirectCopyWithoutScan(ctx, cfg, client, subID, subInfo.Name, targetSubName, requested, resumeForJob, reporter, colorizer)
 	}
 
 	// ── STAGE 2: SCAN ────────────────────────────────────────────────────
@@ -242,6 +251,9 @@ func runSingleSubFolder(
 
 	// ── STAGE 7: COPY ────────────────────────────────────────────────────
 	fmt.Println("[6/6] Copying files (server-side)...")
+	if err := colorizer.SetInProgress(ctx, client, subID, subInfo.Name); err != nil {
+		return err
+	}
 	tasks := make([]drive.CopyTask, 0, totalFiles)
 	for _, f := range scan.Files {
 		targetParent, ok := mapping[f.ParentID]
@@ -311,6 +323,9 @@ func runSingleSubFolder(
 	if copyErr != nil {
 		return copyErr
 	}
+	if err := colorizer.SetDone(ctx, client, subID, subInfo.Name); err != nil {
+		return err
+	}
 	if jobTotal > 1 {
 		fmt.Printf(" ✓ Job %d/%d completed\n", jobNumber, jobTotal)
 		fmt.Println("──────────────────────────────────────────────────────────────")
@@ -357,6 +372,7 @@ func runDirectCopyWithoutScan(
 	requested string,
 	resumeForJob bool,
 	reporter *runReportWriter,
+	colorizer sourceFolderColorizer,
 ) error {
 	fmt.Println("[3/6] Scanning source tree...")
 	fmt.Println("      • Pre-flight scanning is disabled by options.skip_scan=true.")
@@ -443,6 +459,7 @@ func runDirectCopyWithoutScan(
 	queue := []folderPair{{srcID: subID, dstID: targetRootID, path: sourceName}}
 	discoveredFiles := int64(0)
 	discoveredBytes := int64(0)
+	colorMarked := false
 
 	for len(queue) > 0 {
 		if err := ctx.Err(); err != nil {
@@ -492,6 +509,13 @@ func runDirectCopyWithoutScan(
 		}
 
 		if len(tasks) > 0 {
+			if !colorMarked {
+				if err := colorizer.SetInProgress(ctx, client, subID, sourceName); err != nil {
+					spinner.Finish()
+					return err
+				}
+				colorMarked = true
+			}
 			if err := copier.Run(ctx, tasks, batchBytes, mfst.IsDone); err != nil {
 				spinner.Finish()
 				report := copyReport{
@@ -541,6 +565,64 @@ func runDirectCopyWithoutScan(
 	}
 	printMiniReport(report, nil)
 	appendReport(reporter, report, nil)
+	if colorMarked {
+		if err := colorizer.SetDone(ctx, client, subID, sourceName); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type sourceFolderColorizer struct {
+	enabled         bool
+	inProgressHex   string
+	inProgressLabel string
+	doneHex         string
+	doneLabel       string
+}
+
+func newSourceFolderColorizer(rawFinal string) (sourceFolderColorizer, error) {
+	finalRaw := strings.TrimSpace(rawFinal)
+	if finalRaw == "" {
+		return sourceFolderColorizer{}, nil
+	}
+
+	inProgressHex, inProgressLabel, err := drive.ResolveFolderColor("yellow")
+	if err != nil {
+		return sourceFolderColorizer{}, err
+	}
+	doneHex, doneLabel, err := drive.ResolveFolderColor(finalRaw)
+	if err != nil {
+		return sourceFolderColorizer{}, err
+	}
+	return sourceFolderColorizer{
+		enabled:         true,
+		inProgressHex:   inProgressHex,
+		inProgressLabel: inProgressLabel,
+		doneHex:         doneHex,
+		doneLabel:       doneLabel,
+	}, nil
+}
+
+func (c sourceFolderColorizer) SetInProgress(ctx context.Context, client *drive.Client, folderID, folderName string) error {
+	if !c.enabled {
+		return nil
+	}
+	fmt.Printf("      • Source folder color: %q -> %s\n", folderName, c.inProgressLabel)
+	if err := client.SetFolderColor(ctx, folderID, c.inProgressHex); err != nil {
+		return fmt.Errorf("set source sub-folder color to %s: %w", c.inProgressLabel, err)
+	}
+	return nil
+}
+
+func (c sourceFolderColorizer) SetDone(ctx context.Context, client *drive.Client, folderID, folderName string) error {
+	if !c.enabled {
+		return nil
+	}
+	fmt.Printf("      • Source folder color: %q -> %s\n", folderName, c.doneLabel)
+	if err := client.SetFolderColor(ctx, folderID, c.doneHex); err != nil {
+		return fmt.Errorf("set source sub-folder color to %s: %w", c.doneLabel, err)
+	}
 	return nil
 }
 

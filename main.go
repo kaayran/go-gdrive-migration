@@ -22,6 +22,7 @@ func main() {
 	subFolder := flag.String("sub-folder", "", "override sub_folder from config (path or list)")
 	subFolderID := flag.String("sub-folder-id", "", "override sub_folder_id from config (id or list)")
 	targetSubfolderPostfix := flag.String("target-subfolder-postfix", "", "override options.target_subfolder_postfix from config")
+	changeColor := flag.String("change-color", "", "set source sub-folder final color after copy (e.g. green, blue, #00ff00)")
 	yes := flag.Bool("yes", false, "skip confirmation prompt")
 	dryRun := flag.Bool("dry-run", false, "scan and show plan without copying")
 	estimate := flag.Bool("estimate", false, "estimate source size/files and exit (no copy)")
@@ -52,6 +53,9 @@ func main() {
 	}
 	if *targetSubfolderPostfix != "" {
 		cfg.Options.TargetSubfolderPostfix = *targetSubfolderPostfix
+	}
+	if *changeColor != "" {
+		cfg.Options.ChangeColor = *changeColor
 	}
 	if *yes {
 		cfg.Options.AssumeYes = true

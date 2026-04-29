@@ -45,6 +45,12 @@ options:
   # Example: source "MyFolder" + " Promo Materials" -> target "MyFolder Promo Materials".
   target_subfolder_postfix: ""
 
+  # Source sub-folder color during/after copy.
+  # If set, the tool colors source sub-folder to yellow when copy starts,
+  # then to this final color on successful completion.
+  # Supported values: red/orange/yellow/green/teal/blue/purple/pink/gray or #RRGGBB.
+  change_color: ""
+
   # Test/simulation modes.
   dry_run: false           # no copy (with skip_scan=false shows scan+plan)
   verify_checksums: false  # compare source/target md5 after copy (slower scan/copy)

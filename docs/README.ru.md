@@ -80,6 +80,7 @@ notepad config.yaml
 - `sub_folder` - один или несколько путей (` , ` / `;` / новая строка), **или**
 - `sub_folder_id` - один или несколько ID папок (` , ` / `;` / новая строка).
 - `options.target_subfolder_postfix` - опциональный постфикс для имени target sub-folder.
+- `options.change_color` - финальный цвет source sub-folder после успешного copy (`red`, `blue`, `green`, `#RRGGBB` и т.д.). Если включено, при старте copy source папка красится в `yellow`.
 
 ID папки — это часть после `/folders/` в URL Google Drive.
 
@@ -114,6 +115,7 @@ go-gdrive-migration\
 --sub-folder      переопределить sub_folder из config (путь или список)
 --sub-folder-id   переопределить sub_folder_id из config (ID или список)
 --target-subfolder-postfix  переопределить options.target_subfolder_postfix
+--change-color    установить финальный цвет source sub-folder после copy
 --yes             пропустить подтверждение копирования (удобно для CI)
 --dry-run         без копирования (при skip_scan=false показывает scan+plan)
 --estimate        быстрый подсчет folders/files/bytes и выход
@@ -130,6 +132,7 @@ go-gdrive-migration\
 .\dist\go-gdrive-migration.exe --config config.yaml --sub-folder "Folder1,Folder2" --estimate
 .\dist\go-gdrive-migration.exe --config config.yaml --sub-folder-id "1AAA...,1BBB..." --yes
 .\dist\go-gdrive-migration.exe --config config.yaml --sub-folder "MyFolder" --target-subfolder-postfix " Promo Materials"
+.\dist\go-gdrive-migration.exe --config config.yaml --sub-folder "MyFolder" --change-color green
 ```
 
 ---

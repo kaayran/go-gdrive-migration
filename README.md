@@ -80,6 +80,7 @@ Fill:
 - `sub_folder` - one or multiple paths (` , ` / `;` / newline), **or**
 - `sub_folder_id` - one or multiple folder IDs (` , ` / `;` / newline).
 - `options.target_subfolder_postfix` - optional suffix for target subfolder name.
+- `options.change_color` - optional final source sub-folder color after successful copy (`red`, `blue`, `green`, `#RRGGBB`, etc.). If enabled, source is set to yellow when copy starts.
 
 Folder ID is the segment after `/folders/` in a Drive URL.
 
@@ -114,6 +115,7 @@ and reused on next runs.
 --sub-folder      override sub_folder from config (path or list)
 --sub-folder-id   override sub_folder_id from config (ID or list)
 --target-subfolder-postfix  override options.target_subfolder_postfix
+--change-color    set final source sub-folder color after successful copy
 --yes             skip copy confirmation prompts (CI-friendly)
 --dry-run         no copy (with skip_scan=false shows scan+plan)
 --estimate        quick folders/files/bytes estimate and exit
@@ -130,6 +132,7 @@ Examples:
 .\dist\go-gdrive-migration.exe --config config.yaml --sub-folder "Folder1,Folder2" --estimate
 .\dist\go-gdrive-migration.exe --config config.yaml --sub-folder-id "1AAA...,1BBB..." --yes
 .\dist\go-gdrive-migration.exe --config config.yaml --sub-folder "MyFolder" --target-subfolder-postfix " Promo Materials"
+.\dist\go-gdrive-migration.exe --config config.yaml --sub-folder "MyFolder" --change-color green
 ```
 
 ---
@@ -328,6 +331,7 @@ Fill:
 - `sub_folder` - one or multiple paths (` , ` / `;` / newline), **or**
 - `sub_folder_id` - one or multiple folder IDs (` , ` / `;` / newline).
 - `options.target_subfolder_postfix` - optional suffix for target subfolder name.
+- `options.change_color` - optional final source sub-folder color after successful copy (`red`, `blue`, `green`, `#RRGGBB`, etc.). If enabled, source is set to yellow when copy starts.
 
 Folder ID is the segment after `/folders/` in a Drive URL.
 
@@ -362,6 +366,7 @@ and reused on next runs.
 --sub-folder      override sub_folder from config (path or list)
 --sub-folder-id   override sub_folder_id from config (ID or list)
 --target-subfolder-postfix  override options.target_subfolder_postfix
+--change-color    set final source sub-folder color after successful copy
 --yes             skip copy confirmation prompts (CI-friendly)
 --dry-run         no copy (with skip_scan=false shows scan+plan)
 --estimate        quick folders/files/bytes estimate and exit
@@ -378,6 +383,7 @@ Examples:
 .\dist\go-gdrive-migration.exe --config config.yaml --sub-folder "Folder1,Folder2" --estimate
 .\dist\go-gdrive-migration.exe --config config.yaml --sub-folder-id "1AAA...,1BBB..." --yes
 .\dist\go-gdrive-migration.exe --config config.yaml --sub-folder "MyFolder" --target-subfolder-postfix " Promo Materials"
+.\dist\go-gdrive-migration.exe --config config.yaml --sub-folder "MyFolder" --change-color green
 ```
 
 ---

@@ -51,7 +51,8 @@ type Options struct {
 	Resume           bool   `yaml:"resume"`
 	ManifestFile     string `yaml:"manifest_file"`
 	TargetSubfolderPostfix string `yaml:"target_subfolder_postfix"`
-	EstimateOnly     bool   `yaml:"estimate_only"`
+	ChangeColor            string `yaml:"change_color"`
+	EstimateOnly           bool   `yaml:"estimate_only"`
 	// SkipScan disables source pre-flight scan.
 	// false (default) scans first, true copies immediately.
 	SkipScan bool `yaml:"skip_scan"`
