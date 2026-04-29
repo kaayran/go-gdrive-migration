@@ -48,7 +48,7 @@ options:
   # Test/simulation modes.
   dry_run: false           # no copy (with skip_scan=false shows scan+plan)
   verify_checksums: false  # compare source/target md5 after copy (slower scan/copy)
-  assume_yes: false        # skip confirmation prompts (CI-friendly)
+  assume_yes: true        # skip confirmation prompts (CI-friendly)
 
   # Retry with exponential backoff for 429/5xx and rate-limit 403.
   retry:
