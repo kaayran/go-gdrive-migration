@@ -1,4 +1,4 @@
-module gdrive-migrate
+module go-gdrive-migration
 
 go 1.23
 

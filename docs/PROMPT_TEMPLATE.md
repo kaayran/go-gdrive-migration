@@ -1,11 +1,11 @@
 # PROMPT_TEMPLATE
 
-Reusable prompt template for another agent working on `gdrive-migrate`.
+Reusable prompt template for another agent working on `go-gdrive-migration`.
 Copy the block below, fill the `TODO` sections, and send it to the agent.
 
 ---
 
-You are working on `gdrive-migrate` (Go).
+You are working on `go-gdrive-migration` (Go).
 
 Before starting, read:
 - `docs/AGENT_HANDOFF.md` (main architecture + invariants doc)

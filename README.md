@@ -1,4 +1,4 @@
-# gdrive-migrate
+# go-gdrive-migration
 
 Russian docs: [`docs/README.ru.md`](./docs/README.ru.md)
 
@@ -51,12 +51,12 @@ One-time setup. One `credentials.json` can be reused across machines/jobs.
 ### 3) Build
 
 ```powershell
-cd D:\Projects\gdrive-migrate
+cd D:\Projects\go-gdrive-migration
 go mod tidy
 .\build.ps1 -Target win
 ```
 
-Binary output: `.\dist\gdrive-migrate.exe`.
+Binary output: `.\dist\go-gdrive-migration.exe`.
 
 ### 4) Configure
 
@@ -78,14 +78,14 @@ Folder ID is the segment after `/folders/` in a Drive URL.
 ### 5) Place files together and run
 
 ```text
-gdrive-migrate\
-├── gdrive-migrate.exe
+go-gdrive-migration\
+├── go-gdrive-migration.exe
 ├── credentials.json
 └── config.yaml
 ```
 
 ```powershell
-.\dist\gdrive-migrate.exe --config config.yaml
+.\dist\go-gdrive-migration.exe --config config.yaml
 ```
 
 First run opens a browser for OAuth login. `token.json` is then stored locally
@@ -113,9 +113,9 @@ Priority for postfix: `--target-subfolder-postfix` > `options.target_subfolder_p
 Examples:
 
 ```powershell
-.\dist\gdrive-migrate.exe --config config.yaml --sub-folder "Folder1,Folder2" --estimate
-.\dist\gdrive-migrate.exe --config config.yaml --sub-folder-id "1AAA...,1BBB..." --yes
-.\dist\gdrive-migrate.exe --config config.yaml --sub-folder "MyFolder" --target-subfolder-postfix " Promo Materials"
+.\dist\go-gdrive-migration.exe --config config.yaml --sub-folder "Folder1,Folder2" --estimate
+.\dist\go-gdrive-migration.exe --config config.yaml --sub-folder-id "1AAA...,1BBB..." --yes
+.\dist\go-gdrive-migration.exe --config config.yaml --sub-folder "MyFolder" --target-subfolder-postfix " Promo Materials"
 ```
 
 ---
@@ -202,7 +202,7 @@ If throttling is frequent, reduce `copy_workers` (for example to 6-8).
 ## Project Structure
 
 ```text
-gdrive-migrate/
+go-gdrive-migration/
 ├── main.go
 ├── go.mod
 ├── config.example.yaml
@@ -226,7 +226,7 @@ gdrive-migrate/
 - `docs/README.ru.md` - documentation index (Russian).
 - `docs/ABOUT.md` - short beginner-friendly overview.
 - `docs/AGENT_HANDOFF.md` - technical details, invariants, and change points.
-# gdrive-migrate
+# go-gdrive-migration
 
 Russian docs: [`docs/README.ru.md`](./docs/README.ru.md)
 
@@ -279,12 +279,12 @@ One-time setup. One `credentials.json` can be reused across machines/jobs.
 ### 3) Build
 
 ```powershell
-cd D:\Projects\gdrive-migrate
+cd D:\Projects\go-gdrive-migration
 go mod tidy
 .\build.ps1 -Target win
 ```
 
-Binary output: `.\dist\gdrive-migrate.exe`.
+Binary output: `.\dist\go-gdrive-migration.exe`.
 
 ### 4) Configure
 
@@ -306,14 +306,14 @@ Folder ID is the segment after `/folders/` in a Drive URL.
 ### 5) Place files together and run
 
 ```text
-gdrive-migrate\
-├── gdrive-migrate.exe
+go-gdrive-migration\
+├── go-gdrive-migration.exe
 ├── credentials.json
 └── config.yaml
 ```
 
 ```powershell
-.\dist\gdrive-migrate.exe --config config.yaml
+.\dist\go-gdrive-migration.exe --config config.yaml
 ```
 
 First run opens a browser for OAuth login. `token.json` is then stored locally
@@ -341,9 +341,9 @@ Priority for postfix: `--target-subfolder-postfix` > `options.target_subfolder_p
 Examples:
 
 ```powershell
-.\dist\gdrive-migrate.exe --config config.yaml --sub-folder "Folder1,Folder2" --estimate
-.\dist\gdrive-migrate.exe --config config.yaml --sub-folder-id "1AAA...,1BBB..." --yes
-.\dist\gdrive-migrate.exe --config config.yaml --sub-folder "MyFolder" --target-subfolder-postfix " Promo Materials"
+.\dist\go-gdrive-migration.exe --config config.yaml --sub-folder "Folder1,Folder2" --estimate
+.\dist\go-gdrive-migration.exe --config config.yaml --sub-folder-id "1AAA...,1BBB..." --yes
+.\dist\go-gdrive-migration.exe --config config.yaml --sub-folder "MyFolder" --target-subfolder-postfix " Promo Materials"
 ```
 
 ---
@@ -430,7 +430,7 @@ If throttling is frequent, reduce `copy_workers` (for example to 6-8).
 ## Project Structure
 
 ```text
-gdrive-migrate/
+go-gdrive-migration/
 ├── main.go
 ├── go.mod
 ├── config.example.yaml

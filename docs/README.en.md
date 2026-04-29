@@ -1,4 +1,4 @@
-# gdrive-migrate Documentation (EN)
+# go-gdrive-migration Documentation (EN)
 
 This folder contains internal project documentation: a quick onboarding guide
 and deeper technical notes for development work.

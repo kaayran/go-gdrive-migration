@@ -1,4 +1,4 @@
-# gdrive-migrate config
+# go-gdrive-migration config
 
 # OAuth credentials. Generate these in Google Cloud Console (see README.md).
 auth:

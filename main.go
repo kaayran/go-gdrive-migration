@@ -8,8 +8,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"gdrive-migrate/internal/config"
-	"gdrive-migrate/internal/pipeline"
+	"go-gdrive-migration/internal/config"
+	"go-gdrive-migration/internal/pipeline"
 )
 
 var (
@@ -30,7 +30,7 @@ func main() {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Printf("gdrive-migrate %s (%s)\n", version, commit)
+		fmt.Printf("go-gdrive-migration %s (%s)\n", version, commit)
 		return
 	}
 

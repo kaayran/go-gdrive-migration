@@ -10,17 +10,17 @@ import (
 	"strings"
 	"time"
 
-	"gdrive-migrate/internal/auth"
-	"gdrive-migrate/internal/config"
-	"gdrive-migrate/internal/drive"
-	"gdrive-migrate/internal/manifest"
-	"gdrive-migrate/internal/progress"
+	"go-gdrive-migration/internal/auth"
+	"go-gdrive-migration/internal/config"
+	"go-gdrive-migration/internal/drive"
+	"go-gdrive-migration/internal/manifest"
+	"go-gdrive-migration/internal/progress"
 )
 
 // Run executes the full migration pipeline.
 func Run(ctx context.Context, cfg *config.Config) error {
 	fmt.Println("──────────────────────────────────────────────────────────────")
-	fmt.Println(" gdrive-migrate")
+	fmt.Println(" go-gdrive-migration")
 	fmt.Println("──────────────────────────────────────────────────────────────")
 	fmt.Printf(" Source folder ID : %s\n", cfg.SourceFolderID)
 	fmt.Printf(" Target folder ID : %s\n", cfg.TargetFolderID)
@@ -582,7 +582,7 @@ func newRunReportWriter(manifestPath string) (*runReportWriter, error) {
 	}
 	ts := time.Now().Format("20060102-150405")
 	path := filepath.Join(reportsDir, fmt.Sprintf("run-report-%s.txt", ts))
-	header := fmt.Sprintf("gdrive-migrate run report\ncreated_at: %s\n\n", time.Now().Format(time.RFC3339))
+	header := fmt.Sprintf("go-gdrive-migration run report\ncreated_at: %s\n\n", time.Now().Format(time.RFC3339))
 	if err := os.WriteFile(path, []byte(header), 0o644); err != nil {
 		return nil, fmt.Errorf("create run report file: %w", err)
 	}

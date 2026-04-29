@@ -1,9 +1,10 @@
 @echo off
 setlocal
 cd /d "%~dp0"
+call "%~dp0project-vars.bat"
 
-if not exist ".\dist\gdrive-migrate.exe" (
-  echo [ERROR] Binary not found: .\dist\gdrive-migrate.exe
+if not exist ".\dist\%APP_EXE%" (
+  echo [ERROR] Binary not found: .\dist\%APP_EXE%
   echo Build first: .\build.ps1 -Target win
   echo.
   pause
@@ -12,7 +13,7 @@ if not exist ".\dist\gdrive-migrate.exe" (
 
 echo Running dry-run mode...
 echo.
-".\dist\gdrive-migrate.exe" --config config.yaml --dry-run %*
+".\dist\%APP_EXE%" --config config.yaml --dry-run %*
 set "ERR=%ERRORLEVEL%"
 
 echo.

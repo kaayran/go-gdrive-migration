@@ -1,5 +1,5 @@
 #requires -Version 5.0
-# Cross-build gdrive-migrate for Windows / Linux / macOS.
+# Cross-build go-gdrive-migration for Windows / Linux / macOS.
 # Usage:  .\build.ps1             - build all targets into .\dist
 #         .\build.ps1 -Target win - build Windows only
 
@@ -11,6 +11,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+$appName = 'go-gdrive-migration'
 $ldflags = "-s -w -X main.version=$Version"
 
 $dist = Join-Path $PSScriptRoot 'dist'
@@ -26,10 +27,10 @@ function Build($os, $arch, $out) {
     if ($LASTEXITCODE -ne 0) { throw "build failed for $os/$arch" }
 }
 
-if ($Target -in 'all','win')     { Build 'windows' 'amd64' 'gdrive-migrate.exe' }
-if ($Target -in 'all','linux')   { Build 'linux'   'amd64' 'gdrive-migrate-linux' }
-if ($Target -in 'all','mac')     { Build 'darwin'  'amd64' 'gdrive-migrate-mac-intel' }
-if ($Target -in 'all','mac-arm') { Build 'darwin'  'arm64' 'gdrive-migrate-mac-arm64' }
+if ($Target -in 'all','win')     { Build 'windows' 'amd64' "$appName.exe" }
+if ($Target -in 'all','linux')   { Build 'linux'   'amd64' "$appName-linux" }
+if ($Target -in 'all','mac')     { Build 'darwin'  'amd64' "$appName-mac-intel" }
+if ($Target -in 'all','mac-arm') { Build 'darwin'  'arm64' "$appName-mac-arm64" }
 
 Write-Host ""
 Write-Host "Done. Binaries in: $dist"

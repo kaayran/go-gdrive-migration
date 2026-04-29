@@ -5,7 +5,7 @@ Goal: quickly understand architecture, invariants, and safe change points.
 
 ## 1) Project Context
 
-- Project: `gdrive-migrate`
+- Project: `go-gdrive-migration`
 - Language: Go
 - Scenario: copy subtree(s) from `source_folder_id` to `target_folder_id` in Google Drive using `sub_folder` or one/multiple `sub_folder_id` values.
 - Copy mode: server-side only (`Drive API files.copy`), no local download/upload.
@@ -191,11 +191,11 @@ Touch:
 - Config: `config.yaml` (template: `config.example.yaml`).
 - Build:
   - `go mod tidy`
-  - `go build -o gdrive-migrate.exe .`
+  - `go build -o go-gdrive-migration.exe .`
   - or `build.ps1` for cross-platform builds.
 
 Minimal run:
-- `./gdrive-migrate --config config.yaml`
+- `./go-gdrive-migration --config config.yaml`
 
 ## 9) Current Risks
 

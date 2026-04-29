@@ -5,7 +5,7 @@ which technologies it uses.
 
 ## What the utility does
 
-`gdrive-migrate` copies a selected subfolder from one Google Drive location to
+`go-gdrive-migration` copies a selected subfolder from one Google Drive location to
 another.
 
 In simple terms:

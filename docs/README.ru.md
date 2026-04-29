@@ -1,4 +1,4 @@
-# gdrive-migrate
+# go-gdrive-migration
 
 English docs: [`../README.md`](../README.md)
 
@@ -51,12 +51,12 @@ go version
 ### 3) Сборка
 
 ```powershell
-cd D:\Projects\gdrive-migrate
+cd D:\Projects\go-gdrive-migration
 go mod tidy
 .\build.ps1 -Target win
 ```
 
-Бинарь: `.\dist\gdrive-migrate.exe`.
+Бинарь: `.\dist\go-gdrive-migration.exe`.
 
 ### 4) Настройка
 
@@ -78,14 +78,14 @@ ID папки — это часть после `/folders/` в URL Google Drive.
 ### 5) Положить файлы рядом и запустить
 
 ```text
-gdrive-migrate\
-├── gdrive-migrate.exe
+go-gdrive-migration\
+├── go-gdrive-migration.exe
 ├── credentials.json
 └── config.yaml
 ```
 
 ```powershell
-.\dist\gdrive-migrate.exe --config config.yaml
+.\dist\go-gdrive-migration.exe --config config.yaml
 ```
 
 При первом запуске откроется браузер для OAuth-авторизации. Затем `token.json`
@@ -113,9 +113,9 @@ gdrive-migrate\
 Примеры:
 
 ```powershell
-.\dist\gdrive-migrate.exe --config config.yaml --sub-folder "Folder1,Folder2" --estimate
-.\dist\gdrive-migrate.exe --config config.yaml --sub-folder-id "1AAA...,1BBB..." --yes
-.\dist\gdrive-migrate.exe --config config.yaml --sub-folder "MyFolder" --target-subfolder-postfix " Promo Materials"
+.\dist\go-gdrive-migration.exe --config config.yaml --sub-folder "Folder1,Folder2" --estimate
+.\dist\go-gdrive-migration.exe --config config.yaml --sub-folder-id "1AAA...,1BBB..." --yes
+.\dist\go-gdrive-migration.exe --config config.yaml --sub-folder "MyFolder" --target-subfolder-postfix " Promo Materials"
 ```
 
 ---
@@ -202,7 +202,7 @@ gdrive-migrate\
 ## Структура проекта
 
 ```text
-gdrive-migrate/
+go-gdrive-migration/
 ├── main.go
 ├── go.mod
 ├── config.example.yaml
@@ -226,7 +226,7 @@ gdrive-migrate/
 - `docs/README.ru.md` - индекс документации (Russian).
 - `docs/ABOUT.md` - краткий обзор проекта.
 - `docs/AGENT_HANDOFF.md` - технические детали, инварианты и точки изменений.
-# Документация gdrive-migrate (RU)
+# Документация go-gdrive-migration (RU)
 
 Этот раздел содержит внутреннюю документацию по проекту: быстрый вход для
 новичков и технические детали для разработки.
