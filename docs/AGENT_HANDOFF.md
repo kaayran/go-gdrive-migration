@@ -192,7 +192,7 @@ Touch:
 - Build:
   - `go mod tidy`
   - `go build -o go-gdrive-migration.exe .`
-  - or `build.ps1` for cross-platform builds.
+  - or `build.ps1` / `build.sh` for cross-platform builds.
 
 Minimal run:
 - `./go-gdrive-migration --config config.yaml`

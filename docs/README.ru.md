@@ -58,6 +58,14 @@ go mod tidy
 
 Бинарь: `.\dist\go-gdrive-migration.exe`.
 
+Для macOS/Linux:
+
+```bash
+cd ~/go-gdrive-migration
+go mod tidy
+./build.sh -Target mac-arm
+```
+
 ### 4) Настройка
 
 ```powershell
@@ -86,6 +94,12 @@ go-gdrive-migration\
 
 ```powershell
 .\dist\go-gdrive-migration.exe --config config.yaml
+```
+
+Или через helper-скрипт на macOS/Linux:
+
+```bash
+./run.sh
 ```
 
 При первом запуске откроется браузер для OAuth-авторизации. Затем `token.json`
@@ -207,9 +221,15 @@ go-gdrive-migration/
 ├── go.mod
 ├── config.example.yaml
 ├── build.ps1
+├── build.sh
+├── project-vars.bat
+├── project-vars.sh
 ├── run.bat
+├── run.sh
 ├── estimate.bat
+├── estimate.sh
 ├── dry-run.bat
+├── dry-run.sh
 ├── internal/
 │   ├── config/
 │   ├── auth/

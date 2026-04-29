@@ -58,6 +58,14 @@ go mod tidy
 
 Binary output: `.\dist\go-gdrive-migration.exe`.
 
+For macOS/Linux:
+
+```bash
+cd ~/go-gdrive-migration
+go mod tidy
+./build.sh -Target mac-arm
+```
+
 ### 4) Configure
 
 ```powershell
@@ -86,6 +94,12 @@ go-gdrive-migration\
 
 ```powershell
 .\dist\go-gdrive-migration.exe --config config.yaml
+```
+
+Or with helper script on macOS/Linux:
+
+```bash
+./run.sh
 ```
 
 First run opens a browser for OAuth login. `token.json` is then stored locally
@@ -207,9 +221,15 @@ go-gdrive-migration/
 ├── go.mod
 ├── config.example.yaml
 ├── build.ps1
+├── build.sh
+├── project-vars.bat
+├── project-vars.sh
 ├── run.bat
+├── run.sh
 ├── estimate.bat
+├── estimate.sh
 ├── dry-run.bat
+├── dry-run.sh
 ├── internal/
 │   ├── config/
 │   ├── auth/
@@ -286,6 +306,14 @@ go mod tidy
 
 Binary output: `.\dist\go-gdrive-migration.exe`.
 
+For macOS/Linux:
+
+```bash
+cd ~/go-gdrive-migration
+go mod tidy
+./build.sh -Target mac-arm
+```
+
 ### 4) Configure
 
 ```powershell
@@ -314,6 +342,12 @@ go-gdrive-migration\
 
 ```powershell
 .\dist\go-gdrive-migration.exe --config config.yaml
+```
+
+Or with helper script on macOS/Linux:
+
+```bash
+./run.sh
 ```
 
 First run opens a browser for OAuth login. `token.json` is then stored locally
@@ -435,9 +469,15 @@ go-gdrive-migration/
 ├── go.mod
 ├── config.example.yaml
 ├── build.ps1
+├── build.sh
+├── project-vars.bat
+├── project-vars.sh
 ├── run.bat
+├── run.sh
 ├── estimate.bat
+├── estimate.sh
 ├── dry-run.bat
+├── dry-run.sh
 ├── internal/
 │   ├── config/
 │   ├── auth/
