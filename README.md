@@ -3,13 +3,15 @@
 Russian docs: [`docs/README.ru.md`](./docs/README.ru.md)
 
 Utility for fast folder and file copy between two Google Drive folders that are
-accessible by the same account. Uses **server-side copy** via Google Drive API,
-so files do not pass through your machine.
+accessible by the same account, plus local folder upload into Google Drive.
+Drive-to-Drive mode uses **server-side copy** via Google Drive API, so files do
+not pass through your machine.
 
 ## Features
 
 - Single static binary, no runtime dependencies (Windows / Linux / macOS).
 - Parallel tree traversal and parallel file copy (configurable).
+- Local folder upload into a target Google Drive folder.
 - Optional pre-flight scan: collect stats first, or skip scan and copy directly.
 - Real-time progress bars for files and bytes.
 - Skip empty folders (including empty subtrees).
@@ -77,8 +79,10 @@ Fill:
 
 - `source_folder_id` - source root folder (ID or URL).
 - `target_folder_id` - destination root folder (ID or URL).
-- `sub_folder` - one or multiple paths (` , ` / `;` / newline), **or**
-- `sub_folder_id` - one or multiple folder IDs (` , ` / `;` / newline).
+- Leave `sub_folder` / `sub_folder_id` empty to copy the source root folder itself into target.
+- `sub_folder` - optional one or multiple paths (` , ` / `;` / newline), **or**
+- `sub_folder_id` - optional one or multiple folder IDs (` , ` / `;` / newline).
+- For local upload: set `options.mode: local_upload` and `source_local_path`.
 - `options.target_subfolder_postfix` - optional suffix for target subfolder name.
 - `options.change_color` - optional final source sub-folder color after successful copy (`red`, `blue`, `green`, `#RRGGBB`, etc.). If enabled, source is set to yellow when copy starts.
 
@@ -114,6 +118,7 @@ and reused on next runs.
 --config <path>   path to config.yaml (default: ./config.yaml)
 --sub-folder      override sub_folder from config (path or list)
 --sub-folder-id   override sub_folder_id from config (ID or list)
+--upload-from     upload local folder to target_folder_id
 --target-subfolder-postfix  override options.target_subfolder_postfix
 --change-color    set final source sub-folder color after successful copy
 --yes             skip copy confirmation prompts (CI-friendly)
@@ -123,7 +128,7 @@ and reused on next runs.
 --version         show version
 ```
 
-Priority for source selection: `--sub-folder-id` > `--sub-folder` > `config.yaml`.
+Priority for Drive copy source selection: `--sub-folder-id` > `--sub-folder` > `config.yaml` > source root folder.
 Priority for postfix: `--target-subfolder-postfix` > `options.target_subfolder_postfix`.
 
 Examples:
@@ -133,20 +138,34 @@ Examples:
 .\dist\go-gdrive-migration.exe --config config.yaml --sub-folder-id "1AAA...,1BBB..." --yes
 .\dist\go-gdrive-migration.exe --config config.yaml --sub-folder "MyFolder" --target-subfolder-postfix " Promo Materials"
 .\dist\go-gdrive-migration.exe --config config.yaml --sub-folder "MyFolder" --change-color green
+.\dist\go-gdrive-migration.exe --config config.yaml --upload-from "D:\Target\Resources" --yes
 ```
 
 ---
 
 ## How It Works
 
+Drive-to-Drive copy:
+
 ```text
 [1/6] Auth         -> OAuth flow (first run only)
-[2/6] Resolve src  -> resolve sub_folder path under source_folder_id,
-                      or use sub_folder_id directly
+[2/6] Resolve src  -> resolve source root, sub_folder path under source_folder_id,
+                      or sub_folder_id directly
 [3/6] Scan         -> if options.skip_scan=false: parallel scan and stats
 [4/6] Prepare tgt  -> create/find target root folder for this job
 [5/6] Plan         -> create mirrored folder structure in target
 [6/6] Copy         -> server-side copy with retries + manifest resume
+```
+
+Local folder upload:
+
+```text
+[1/6] Auth         -> OAuth flow (first run only)
+[2/6] Resolve src  -> validate source_local_path / --upload-from
+[3/6] Scan         -> scan local files/folders and collect stats
+[4/6] Prepare tgt  -> create/find target root folder for this upload
+[5/6] Plan         -> create mirrored folder structure in target
+[6/6] Upload       -> upload local files with retries + manifest resume
 ```
 
 ### Pre-flight Scan Modes
@@ -254,13 +273,15 @@ go-gdrive-migration/
 Russian docs: [`docs/README.ru.md`](./docs/README.ru.md)
 
 Utility for fast folder and file copy between two Google Drive folders that are
-accessible by the same account. Uses **server-side copy** via Google Drive API,
-so files do not pass through your machine.
+accessible by the same account, plus local folder upload into Google Drive.
+Drive-to-Drive mode uses **server-side copy** via Google Drive API, so files do
+not pass through your machine.
 
 ## Features
 
 - Single static binary, no runtime dependencies (Windows / Linux / macOS).
 - Parallel tree traversal and parallel file copy (configurable).
+- Local folder upload into a target Google Drive folder.
 - Optional pre-flight scan: collect stats first, or skip scan and copy directly.
 - Real-time progress bars for files and bytes.
 - Skip empty folders (including empty subtrees).
@@ -328,8 +349,10 @@ Fill:
 
 - `source_folder_id` - source root folder (ID or URL).
 - `target_folder_id` - destination root folder (ID or URL).
-- `sub_folder` - one or multiple paths (` , ` / `;` / newline), **or**
-- `sub_folder_id` - one or multiple folder IDs (` , ` / `;` / newline).
+- Leave `sub_folder` / `sub_folder_id` empty to copy the source root folder itself into target.
+- `sub_folder` - optional one or multiple paths (` , ` / `;` / newline), **or**
+- `sub_folder_id` - optional one or multiple folder IDs (` , ` / `;` / newline).
+- For local upload: set `options.mode: local_upload` and `source_local_path`.
 - `options.target_subfolder_postfix` - optional suffix for target subfolder name.
 - `options.change_color` - optional final source sub-folder color after successful copy (`red`, `blue`, `green`, `#RRGGBB`, etc.). If enabled, source is set to yellow when copy starts.
 
@@ -365,6 +388,7 @@ and reused on next runs.
 --config <path>   path to config.yaml (default: ./config.yaml)
 --sub-folder      override sub_folder from config (path or list)
 --sub-folder-id   override sub_folder_id from config (ID or list)
+--upload-from     upload local folder to target_folder_id
 --target-subfolder-postfix  override options.target_subfolder_postfix
 --change-color    set final source sub-folder color after successful copy
 --yes             skip copy confirmation prompts (CI-friendly)
@@ -374,7 +398,7 @@ and reused on next runs.
 --version         show version
 ```
 
-Priority for source selection: `--sub-folder-id` > `--sub-folder` > `config.yaml`.
+Priority for Drive copy source selection: `--sub-folder-id` > `--sub-folder` > `config.yaml` > source root folder.
 Priority for postfix: `--target-subfolder-postfix` > `options.target_subfolder_postfix`.
 
 Examples:
@@ -384,20 +408,34 @@ Examples:
 .\dist\go-gdrive-migration.exe --config config.yaml --sub-folder-id "1AAA...,1BBB..." --yes
 .\dist\go-gdrive-migration.exe --config config.yaml --sub-folder "MyFolder" --target-subfolder-postfix " Promo Materials"
 .\dist\go-gdrive-migration.exe --config config.yaml --sub-folder "MyFolder" --change-color green
+.\dist\go-gdrive-migration.exe --config config.yaml --upload-from "D:\Target\Resources" --yes
 ```
 
 ---
 
 ## How It Works
 
+Drive-to-Drive copy:
+
 ```text
 [1/6] Auth         -> OAuth flow (first run only)
-[2/6] Resolve src  -> resolve sub_folder path under source_folder_id,
-                      or use sub_folder_id directly
+[2/6] Resolve src  -> resolve source root, sub_folder path under source_folder_id,
+                      or sub_folder_id directly
 [3/6] Scan         -> if options.skip_scan=false: parallel scan and stats
 [4/6] Prepare tgt  -> create/find target root folder for this job
 [5/6] Plan         -> create mirrored folder structure in target
 [6/6] Copy         -> server-side copy with retries + manifest resume
+```
+
+Local folder upload:
+
+```text
+[1/6] Auth         -> OAuth flow (first run only)
+[2/6] Resolve src  -> validate source_local_path / --upload-from
+[3/6] Scan         -> scan local files/folders and collect stats
+[4/6] Prepare tgt  -> create/find target root folder for this upload
+[5/6] Plan         -> create mirrored folder structure in target
+[6/6] Upload       -> upload local files with retries + manifest resume
 ```
 
 ### Pre-flight Scan Modes

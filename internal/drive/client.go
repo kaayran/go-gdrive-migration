@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -200,6 +201,34 @@ func (c *Client) CopyFile(ctx context.Context, fileID, targetParentID, name stri
 			Name:    name,
 			Parents: []string{targetParentID},
 		}).
+			Fields("id,size,md5Checksum").
+			SupportsAllDrives(true).
+			Context(ctx).
+			Do()
+		if err != nil {
+			return err
+		}
+		out = f
+		return nil
+	})
+	return out, err
+}
+
+// UploadFile uploads a local file into the given Drive parent folder.
+func (c *Client) UploadFile(ctx context.Context, localPath, targetParentID, name string) (*drive.File, error) {
+	var out *drive.File
+	err := c.do(ctx, func() error {
+		fh, err := os.Open(localPath)
+		if err != nil {
+			return err
+		}
+		defer fh.Close()
+
+		f, err := c.Svc.Files.Create(&drive.File{
+			Name:    name,
+			Parents: []string{targetParentID},
+		}).
+			Media(fh, googleapi.ChunkSize(8*1024*1024)).
 			Fields("id,size,md5Checksum").
 			SupportsAllDrives(true).
 			Context(ctx).

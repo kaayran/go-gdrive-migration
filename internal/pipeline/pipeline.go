@@ -27,11 +27,18 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	fmt.Println("──────────────────────────────────────────────────────────────")
 	fmt.Println(" go-gdrive-migration")
 	fmt.Println("──────────────────────────────────────────────────────────────")
-	fmt.Printf(" Source folder ID : %s\n", cfg.SourceFolderID)
+	fmt.Printf(" Mode             : %s\n", cfg.Options.Mode)
+	if cfg.Options.IsLocalUpload() {
+		fmt.Printf(" Source local path: %s\n", cfg.SourceLocalPath)
+	} else {
+		fmt.Printf(" Source folder ID : %s\n", cfg.SourceFolderID)
+	}
 	fmt.Printf(" Target folder ID : %s\n", cfg.TargetFolderID)
 	subFolderIDs := cfg.SubFolderIDs()
 	subFolders := cfg.SubFolders()
-	if len(subFolderIDs) > 0 {
+	if cfg.Options.IsLocalUpload() {
+		fmt.Printf(" Upload workers   : %d\n", cfg.Options.UploadWorkers)
+	} else if len(subFolderIDs) > 0 {
 		fmt.Printf(" SubFolder IDs    : %d item(s)\n", len(subFolderIDs))
 		for i, id := range subFolderIDs {
 			fmt.Printf("   - [%d] %s\n", i+1, id)
@@ -41,10 +48,14 @@ func Run(ctx context.Context, cfg *config.Config) error {
 		for i, p := range subFolders {
 			fmt.Printf("   - [%d] %s\n", i+1, p)
 		}
+	} else if len(subFolders) == 1 {
+		fmt.Printf(" SubFolder (path) : %s\n", subFolders[0])
 	} else {
-		fmt.Printf(" SubFolder (path) : %s\n", cfg.SubFolder)
+		fmt.Println(" Copy source root : true")
 	}
-	fmt.Printf(" Workers          : scan=%d copy=%d\n", cfg.Options.ScanWorkers, cfg.Options.CopyWorkers)
+	if !cfg.Options.IsLocalUpload() {
+		fmt.Printf(" Workers          : scan=%d copy=%d\n", cfg.Options.ScanWorkers, cfg.Options.CopyWorkers)
+	}
 	fmt.Printf(" Manifest         : %s\n", cfg.Options.ManifestFile)
 	fmt.Printf(" Resume           : %v\n", cfg.Options.Resume)
 	fmt.Printf(" Dry run          : %v\n", cfg.Options.DryRun)
@@ -82,7 +93,14 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	fmt.Println("      ✓ OK")
 	fmt.Println()
 
+	if cfg.Options.IsLocalUpload() {
+		return runLocalUpload(ctx, cfg, client, reporter)
+	}
+
 	if len(subFolderIDs) == 0 {
+		if len(subFolders) == 0 {
+			return runSingleSubFolder(ctx, cfg, client, "", "", 1, 1, cfg.Options.Resume, reporter, colorizer)
+		}
 		for i, path := range subFolders {
 			if len(subFolders) > 1 {
 				fmt.Printf("──────────────────── Job %d/%d ────────────────────\n", i+1, len(subFolders))

@@ -10,8 +10,14 @@ auth:
 source_folder_id: "PASTE_SOURCE_FOLDER_ID_OR_LINK_HERE"   # Source root folder
 target_folder_id: "PASTE_TARGET_FOLDER_ID_OR_LINK_HERE"   # Target root folder
 
-# What to copy. You can set a path relative to source_folder_id:
-sub_folder: "Project Assets/2026"
+# For local upload mode, set this instead of source_folder_id/sub_folder:
+# source_local_path: "D:/Target/Resources"
+
+# What to copy. Leave sub_folder/sub_folder_id empty to copy source_folder_id
+# itself into target_folder_id using the source folder name (+ optional postfix).
+# Or set a path relative to source_folder_id:
+sub_folder: ""
+# sub_folder: "Project Assets/2026"
 # You can provide multiple sub_folder values separated by comma/; or new lines:
 # sub_folder: "Folder1, Folder2; Project Assets/2026"
 # Or provide IDs directly (then sub_folder may be omitted):
@@ -20,6 +26,11 @@ sub_folder: "Project Assets/2026"
 # sub_folder_id: "1AAA..., 1BBB...; 1CCC..."
 
 options:
+  # Work mode:
+  # drive_copy   -> copy a Google Drive folder into another Google Drive folder
+  # local_upload -> upload a local folder into target_folder_id
+  mode: drive_copy
+
   # Skip empty folders (including empty subtrees).
   skip_empty_folders: true
 
@@ -30,6 +41,7 @@ options:
   # Parallelism.
   scan_workers: 16   # tree traversal workers (typically 16-32)
   copy_workers: 12   # file copy workers
+  upload_workers: 4  # local upload workers
   list_page_size: 1000  # keep at Drive max for best throughput
 
   # Pre-flight scan before copy.

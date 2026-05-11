@@ -10,12 +10,18 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const (
+	ModeDriveCopy   = "drive_copy"
+	ModeLocalUpload = "local_upload"
+)
+
 // Config describes config.yaml structure.
 type Config struct {
 	Auth Auth `yaml:"auth"`
 
 	SourceFolderID string `yaml:"source_folder_id"`
 	TargetFolderID string `yaml:"target_folder_id"`
+	SourceLocalPath string `yaml:"source_local_path"`
 
 	// SubFolder can be set as "A/B/C" relative path under source_folder_id,
 	// or as a direct ID via SubFolderID. If both are set, SubFolderID wins.
@@ -59,11 +65,13 @@ type Options struct {
 
 	ScanWorkers   int `yaml:"scan_workers"`
 	CopyWorkers   int `yaml:"copy_workers"`
+	UploadWorkers int `yaml:"upload_workers"`
 	ListPageSize  int `yaml:"list_page_size"`
 
 	DryRun           bool `yaml:"dry_run"`
 	VerifyChecksums  bool `yaml:"verify_checksums"`
 	AssumeYes        bool `yaml:"assume_yes"`
+	Mode             string `yaml:"mode"`
 
 	Retry Retry `yaml:"retry"`
 }
@@ -73,13 +81,17 @@ func (o Options) IsScanEnabled() bool {
 	return !o.SkipScan
 }
 
+func (o Options) IsLocalUpload() bool {
+	return o.Mode == ModeLocalUpload
+}
+
 type Retry struct {
 	MaxAttempts      int `yaml:"max_attempts"`
 	InitialBackoffMs int `yaml:"initial_backoff_ms"`
 	MaxBackoffMs     int `yaml:"max_backoff_ms"`
 }
 
-// Load reads and validates config.
+// Load reads config, applies defaults, and resolves path-like fields.
 func Load(path string) (*Config, error) {
 	abs, err := filepath.Abs(path)
 	if err != nil {
@@ -99,13 +111,17 @@ func Load(path string) (*Config, error) {
 		return nil, err
 	}
 	c.resolvePaths()
-	if err := c.validate(); err != nil {
-		return nil, err
-	}
 	return &c, nil
 }
 
+func (c *Config) Validate() error {
+	return c.validate()
+}
+
 func (c *Config) applyDefaults() {
+	if c.Options.Mode == "" {
+		c.Options.Mode = ModeDriveCopy
+	}
 	if c.Auth.CredentialsFile == "" {
 		c.Auth.CredentialsFile = "credentials.json"
 	}
@@ -120,6 +136,9 @@ func (c *Config) applyDefaults() {
 	}
 	if c.Options.CopyWorkers <= 0 {
 		c.Options.CopyWorkers = 12
+	}
+	if c.Options.UploadWorkers <= 0 {
+		c.Options.UploadWorkers = 4
 	}
 	if c.Options.ListPageSize <= 0 {
 		c.Options.ListPageSize = 1000
@@ -141,6 +160,7 @@ func (c *Config) resolvePaths() {
 	c.Auth.CredentialsFile = c.resolve(c.Auth.CredentialsFile)
 	c.Auth.TokenFile = c.resolve(c.Auth.TokenFile)
 	c.Options.ManifestFile = c.resolve(c.Options.ManifestFile)
+	c.SourceLocalPath = c.resolve(c.SourceLocalPath)
 }
 
 func (c *Config) resolve(p string) string {
@@ -151,14 +171,30 @@ func (c *Config) resolve(p string) string {
 }
 
 func (c *Config) validate() error {
-	if c.SourceFolderID == "" {
-		return fmt.Errorf("source_folder_id is required")
+	switch c.Options.Mode {
+	case ModeDriveCopy:
+	case ModeLocalUpload:
+	default:
+		return fmt.Errorf("options.mode must be %q or %q", ModeDriveCopy, ModeLocalUpload)
 	}
 	if c.TargetFolderID == "" {
 		return fmt.Errorf("target_folder_id is required")
 	}
-	if len(c.SubFolders()) == 0 && len(c.SubFolderIDs()) == 0 {
-		return fmt.Errorf("either sub_folder or sub_folder_id is required")
+	if c.Options.IsLocalUpload() {
+		if c.SourceLocalPath == "" {
+			return fmt.Errorf("source_local_path is required when options.mode=%q", ModeLocalUpload)
+		}
+		info, err := os.Stat(c.SourceLocalPath)
+		if err != nil {
+			return fmt.Errorf("source_local_path not found: %s", c.SourceLocalPath)
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("source_local_path must be a directory: %s", c.SourceLocalPath)
+		}
+	} else {
+		if c.SourceFolderID == "" {
+			return fmt.Errorf("source_folder_id is required")
+		}
 	}
 	if _, err := os.Stat(c.Auth.CredentialsFile); err != nil {
 		return fmt.Errorf("credentials file not found: %s", c.Auth.CredentialsFile)

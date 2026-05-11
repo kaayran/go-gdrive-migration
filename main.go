@@ -21,6 +21,7 @@ func main() {
 	configPath := flag.String("config", "config.yaml", "path to config.yaml")
 	subFolder := flag.String("sub-folder", "", "override sub_folder from config (path or list)")
 	subFolderID := flag.String("sub-folder-id", "", "override sub_folder_id from config (id or list)")
+	uploadFrom := flag.String("upload-from", "", "upload local folder to target_folder_id")
 	targetSubfolderPostfix := flag.String("target-subfolder-postfix", "", "override options.target_subfolder_postfix from config")
 	changeColor := flag.String("change-color", "", "set source sub-folder final color after copy (e.g. green, blue, #00ff00)")
 	yes := flag.Bool("yes", false, "skip confirmation prompt")
@@ -51,6 +52,10 @@ func main() {
 		cfg.SubFolderID = *subFolderID
 		cfg.SubFolder = ""
 	}
+	if *uploadFrom != "" {
+		cfg.Options.Mode = config.ModeLocalUpload
+		cfg.SourceLocalPath = *uploadFrom
+	}
 	if *targetSubfolderPostfix != "" {
 		cfg.Options.TargetSubfolderPostfix = *targetSubfolderPostfix
 	}
@@ -68,6 +73,10 @@ func main() {
 	}
 	if *noResume {
 		cfg.Options.Resume = false
+	}
+	if err := cfg.Validate(); err != nil {
+		fmt.Fprintf(os.Stderr, "config error: %v\n", err)
+		os.Exit(2)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

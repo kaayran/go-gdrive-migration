@@ -3,13 +3,15 @@
 English docs: [`../README.md`](../README.md)
 
 Утилита для быстрого копирования папок и файлов между двумя папками Google
-Drive, доступными одному аккаунту. Использует **server-side copy** через Google
+Drive, доступными одному аккаунту, а также для загрузки локальной папки в
+Google Drive. Drive-to-Drive режим использует **server-side copy** через Google
 Drive API, поэтому файлы не проходят через локальную машину.
 
 ## Возможности
 
 - Один статический бинарь, без runtime-зависимостей (Windows / Linux / macOS).
 - Параллельный обход дерева и параллельное копирование (настраивается).
+- Загрузка локальной папки в target Google Drive folder.
 - Опциональный pre-flight scan: можно сначала собрать статистику или сразу копировать.
 - Прогресс-бары в реальном времени по файлам и по байтам.
 - Пропуск пустых папок (включая пустые поддеревья).
@@ -77,8 +79,10 @@ notepad config.yaml
 
 - `source_folder_id` - корневая папка источника (ID или URL).
 - `target_folder_id` - корневая папка назначения (ID или URL).
-- `sub_folder` - один или несколько путей (` , ` / `;` / новая строка), **или**
-- `sub_folder_id` - один или несколько ID папок (` , ` / `;` / новая строка).
+- Оставьте `sub_folder` / `sub_folder_id` пустыми, чтобы скопировать саму корневую папку source в target.
+- `sub_folder` - опционально один или несколько путей (` , ` / `;` / новая строка), **или**
+- `sub_folder_id` - опционально один или несколько ID папок (` , ` / `;` / новая строка).
+- Для загрузки локальной папки: `options.mode: local_upload` и `source_local_path`.
 - `options.target_subfolder_postfix` - опциональный постфикс для имени target sub-folder.
 - `options.change_color` - финальный цвет source sub-folder после успешного copy (`red`, `blue`, `green`, `#RRGGBB` и т.д.). Если включено, при старте copy source папка красится в `yellow`.
 
@@ -114,6 +118,7 @@ go-gdrive-migration\
 --config <path>   путь к config.yaml (по умолчанию: ./config.yaml)
 --sub-folder      переопределить sub_folder из config (путь или список)
 --sub-folder-id   переопределить sub_folder_id из config (ID или список)
+--upload-from     загрузить локальную папку в target_folder_id
 --target-subfolder-postfix  переопределить options.target_subfolder_postfix
 --change-color    установить финальный цвет source sub-folder после copy
 --yes             пропустить подтверждение копирования (удобно для CI)
@@ -123,7 +128,7 @@ go-gdrive-migration\
 --version         показать версию
 ```
 
-Приоритет источника: `--sub-folder-id` > `--sub-folder` > `config.yaml`.
+Приоритет Drive copy источника: `--sub-folder-id` > `--sub-folder` > `config.yaml` > корневая папка source.
 Приоритет постфикса: `--target-subfolder-postfix` > `options.target_subfolder_postfix`.
 
 Примеры:
@@ -133,20 +138,34 @@ go-gdrive-migration\
 .\dist\go-gdrive-migration.exe --config config.yaml --sub-folder-id "1AAA...,1BBB..." --yes
 .\dist\go-gdrive-migration.exe --config config.yaml --sub-folder "MyFolder" --target-subfolder-postfix " Promo Materials"
 .\dist\go-gdrive-migration.exe --config config.yaml --sub-folder "MyFolder" --change-color green
+.\dist\go-gdrive-migration.exe --config config.yaml --upload-from "D:\Target\Resources" --yes
 ```
 
 ---
 
 ## Как это работает
 
+Drive-to-Drive copy:
+
 ```text
 [1/6] Auth         -> OAuth flow (только на первом запуске)
-[2/6] Resolve src  -> резолв пути sub_folder относительно source_folder_id
+[2/6] Resolve src  -> резолв source root, пути sub_folder относительно source_folder_id
                       или прямое использование sub_folder_id
 [3/6] Scan         -> при options.skip_scan=false: параллельный scan и статистика
 [4/6] Prepare tgt  -> создать/найти target root для текущего job
 [5/6] Plan         -> создать зеркальную структуру папок в target
 [6/6] Copy         -> server-side copy с retry + manifest resume
+```
+
+Загрузка локальной папки:
+
+```text
+[1/6] Auth         -> OAuth flow (только на первом запуске)
+[2/6] Resolve src  -> проверить source_local_path / --upload-from
+[3/6] Scan         -> просканировать локальные файлы/папки и собрать статистику
+[4/6] Prepare tgt  -> создать/найти target root для upload
+[5/6] Plan         -> создать зеркальную структуру папок в target
+[6/6] Upload       -> загрузить локальные файлы с retry + manifest resume
 ```
 
 ### Режимы pre-flight scan
