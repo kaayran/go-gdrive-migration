@@ -15,7 +15,10 @@ import (
 	"google.golang.org/api/option"
 )
 
-const folderMime = "application/vnd.google-apps.folder"
+const (
+	folderMime   = "application/vnd.google-apps.folder"
+	shortcutMime = "application/vnd.google-apps.shortcut"
+)
 
 // Client wraps *drive.Service with retry settings.
 type Client struct {
@@ -46,6 +49,16 @@ func IsFolder(f *drive.File) bool {
 
 // FolderMime returns Drive folder mimeType.
 func FolderMime() string { return folderMime }
+
+// IsShortcut checks whether a file is a Drive shortcut.
+func IsShortcut(f *drive.File) bool {
+	return f.MimeType == shortcutMime
+}
+
+// IsFolderShortcut checks whether a file is a shortcut pointing to a folder.
+func IsFolderShortcut(f *drive.File) bool {
+	return IsShortcut(f) && f.ShortcutDetails != nil && f.ShortcutDetails.TargetMimeType == folderMime
+}
 
 // ResolveSubFolder resolves a path like "A/B/C" under rootID into folderID.
 // If subFolderID is not empty, it is returned as-is.
@@ -87,14 +100,16 @@ func splitPath(p string) []string {
 func (c *Client) findChildFolderByName(ctx context.Context, parentID, name string) (string, error) {
 	// Escape quotes in name.
 	esc := strings.ReplaceAll(name, "'", `\'`)
-	q := fmt.Sprintf("'%s' in parents and mimeType = '%s' and name = '%s' and trashed = false",
-		parentID, folderMime, esc)
+	// Match real folders AND shortcuts: a shortcut pointing to a folder is
+	// resolved to its target so users can list shortcut names in config.
+	q := fmt.Sprintf("'%s' in parents and (mimeType = '%s' or mimeType = '%s') and name = '%s' and trashed = false",
+		parentID, folderMime, shortcutMime, esc)
 
 	var result string
 	err := c.do(ctx, func() error {
 		resp, err := c.Svc.Files.List().
 			Q(q).
-			Fields("files(id,name)").
+			Fields("files(id,name,mimeType,shortcutDetails(targetId,targetMimeType))").
 			SupportsAllDrives(true).
 			IncludeItemsFromAllDrives(true).
 			PageSize(10).
@@ -103,9 +118,18 @@ func (c *Client) findChildFolderByName(ctx context.Context, parentID, name strin
 		if err != nil {
 			return err
 		}
-		if len(resp.Files) > 0 {
-			result = resp.Files[0].Id
+		result = ""
+		var shortcutTarget string
+		for _, f := range resp.Files {
+			if IsFolder(f) {
+				result = f.Id // real folder wins over a shortcut with the same name
+				return nil
+			}
+			if IsFolderShortcut(f) && shortcutTarget == "" {
+				shortcutTarget = f.ShortcutDetails.TargetId
+			}
 		}
+		result = shortcutTarget
 		return nil
 	})
 	return result, err
@@ -116,7 +140,7 @@ func (c *Client) GetFile(ctx context.Context, id string) (*drive.File, error) {
 	var out *drive.File
 	err := c.do(ctx, func() error {
 		f, err := c.Svc.Files.Get(id).
-			Fields("id,name,mimeType,size,parents,md5Checksum").
+			Fields("id,name,mimeType,size,parents,md5Checksum,shortcutDetails(targetId,targetMimeType)").
 			SupportsAllDrives(true).
 			Context(ctx).
 			Do()
@@ -129,15 +153,39 @@ func (c *Client) GetFile(ctx context.Context, id string) (*drive.File, error) {
 	return out, err
 }
 
+// ResolveFolder returns folder metadata for id. If id points to a shortcut,
+// the shortcut is followed to its target folder. Returns an error if the item
+// is neither a folder nor a shortcut to a folder.
+func (c *Client) ResolveFolder(ctx context.Context, id string) (*drive.File, error) {
+	f, err := c.GetFile(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if IsShortcut(f) {
+		if !IsFolderShortcut(f) {
+			return nil, fmt.Errorf("%q (id: %s) is a shortcut to a non-folder item", f.Name, f.Id)
+		}
+		target, err := c.GetFile(ctx, f.ShortcutDetails.TargetId)
+		if err != nil {
+			return nil, fmt.Errorf("resolve shortcut %q target: %w", f.Name, err)
+		}
+		f = target
+	}
+	if !IsFolder(f) {
+		return nil, fmt.Errorf("%q (id: %s) is not a folder (mimeType: %s)", f.Name, f.Id, f.MimeType)
+	}
+	return f, nil
+}
+
 // ListChildren returns all direct folder children (with pagination).
 // includeMD5=true includes md5Checksum and increases response payload.
 func (c *Client) ListChildren(ctx context.Context, parentID string, pageSize int64, includeMD5 bool) ([]*drive.File, error) {
 	q := fmt.Sprintf("'%s' in parents and trashed = false", parentID)
 	var all []*drive.File
 	pageToken := ""
-	fields := "nextPageToken, files(id,name,mimeType,size)"
+	fields := "nextPageToken, files(id,name,mimeType,size,shortcutDetails(targetId,targetMimeType))"
 	if includeMD5 {
-		fields = "nextPageToken, files(id,name,mimeType,size,md5Checksum)"
+		fields = "nextPageToken, files(id,name,mimeType,size,md5Checksum,shortcutDetails(targetId,targetMimeType))"
 	}
 	for {
 		var resp *drive.FileList

@@ -35,6 +35,10 @@ type ScanResult struct {
 	Folders map[string]*FolderNode // All folders in subtree, key = ID
 
 	TotalBytes int64
+
+	ShortcutsFollowed  int64 // shortcuts resolved to their targets and included
+	ShortcutsSkipped   int64 // shortcuts skipped (broken target or no access)
+	ShortcutDuplicates int64 // targets already present in the tree (copied once)
 }
 
 // ScanProgress is emitted via callback during scanning.
@@ -48,9 +52,11 @@ type ScanProgressFn func(ScanProgress)
 
 // EstimateResult is a lightweight pre-copy estimate result.
 type EstimateResult struct {
-	Folders int64
-	Files   int64
-	Bytes   int64
+	Folders           int64
+	Files             int64
+	Bytes             int64
+	ShortcutsFollowed int64 // shortcuts resolved to their targets and included
+	ShortcutsSkipped  int64 // shortcuts skipped (broken target or no access)
 }
 
 // Scanner performs parallel BFS over the Drive tree.
@@ -144,13 +150,29 @@ func (q *workQueue[T]) signalLocked() {
 // Estimate computes quick size/count stats without storing a full tree in memory.
 func (s *Scanner) Estimate(ctx context.Context, rootID string) (*EstimateResult, error) {
 	var (
-		wg         sync.WaitGroup
-		errCh      = make(chan error, 1)
-		filesCnt   int64
-		bytesCnt   int64
-		foldersCnt int64 = 1 // root already counted
+		wg                sync.WaitGroup
+		errCh             = make(chan error, 1)
+		filesCnt          int64
+		bytesCnt          int64
+		foldersCnt        int64 = 1 // root already counted
+		shortcutsFollowed int64
+		shortcutsSkipped  int64
 	)
 	queue := newWorkQueue[string]()
+
+	// visited protects against shortcut cycles and duplicate targets.
+	var visitedMu sync.Mutex
+	visited := map[string]struct{}{rootID: {}}
+	enqueueUnique := func(id string) bool {
+		visitedMu.Lock()
+		if _, ok := visited[id]; ok {
+			visitedMu.Unlock()
+			return false
+		}
+		visited[id] = struct{}{}
+		visitedMu.Unlock()
+		return queue.Enqueue(id)
+	}
 
 	var lastNotifyNs int64
 	notify := func(force bool) {
@@ -197,6 +219,26 @@ func (s *Scanner) Estimate(ctx context.Context, rootID string) (*EstimateResult,
 			localFiles := int64(0)
 			localBytes := int64(0)
 			for _, ch := range children {
+				if IsShortcut(ch) {
+					// Follow the shortcut: count the target contents.
+					if ch.ShortcutDetails == nil {
+						atomic.AddInt64(&shortcutsSkipped, 1)
+						continue
+					}
+					target, terr := s.client.GetFile(ctx, ch.ShortcutDetails.TargetId)
+					if terr != nil || IsShortcut(target) {
+						atomic.AddInt64(&shortcutsSkipped, 1)
+						continue
+					}
+					if IsFolder(target) {
+						localFolders = append(localFolders, target.Id)
+					} else {
+						localFiles++
+						localBytes += target.Size
+					}
+					atomic.AddInt64(&shortcutsFollowed, 1)
+					continue
+				}
 				if IsFolder(ch) {
 					localFolders = append(localFolders, ch.Id)
 					continue
@@ -207,14 +249,15 @@ func (s *Scanner) Estimate(ctx context.Context, rootID string) (*EstimateResult,
 
 			atomic.AddInt64(&filesCnt, localFiles)
 			atomic.AddInt64(&bytesCnt, localBytes)
-			atomic.AddInt64(&foldersCnt, int64(len(localFolders)))
-			notify(false)
 
+			newFolders := int64(0)
 			for _, subID := range localFolders {
-				if !queue.Enqueue(subID) {
-					return
+				if enqueueUnique(subID) {
+					newFolders++
 				}
 			}
+			atomic.AddInt64(&foldersCnt, newFolders)
+			notify(false)
 			}()
 		}
 	}
@@ -235,9 +278,11 @@ func (s *Scanner) Estimate(ctx context.Context, rootID string) (*EstimateResult,
 	default:
 	}
 	return &EstimateResult{
-		Folders: atomic.LoadInt64(&foldersCnt),
-		Files:   atomic.LoadInt64(&filesCnt),
-		Bytes:   atomic.LoadInt64(&bytesCnt),
+		Folders:           atomic.LoadInt64(&foldersCnt),
+		Files:             atomic.LoadInt64(&filesCnt),
+		Bytes:             atomic.LoadInt64(&bytesCnt),
+		ShortcutsFollowed: atomic.LoadInt64(&shortcutsFollowed),
+		ShortcutsSkipped:  atomic.LoadInt64(&shortcutsSkipped),
 	}, nil
 }
 
@@ -261,13 +306,19 @@ func (s *Scanner) Scan(ctx context.Context, rootID, rootName string) (*ScanResul
 	res.Folders[rootID] = root
 
 	var (
-		mu         sync.Mutex
-		wg         sync.WaitGroup
-		errCh      = make(chan error, 1)
-		filesCnt   int64
-		bytesCnt   int64
-		foldersCnt int64 = 1 // root already counted
+		mu                sync.Mutex
+		wg                sync.WaitGroup
+		errCh             = make(chan error, 1)
+		filesCnt          int64
+		bytesCnt          int64
+		foldersCnt        int64 = 1 // root already counted
+		shortcutsFollowed int64
+		shortcutsSkipped  int64
+		shortcutDupes     int64
 	)
+	// seenFiles deduplicates files by source ID (a file reachable both
+	// directly and via a shortcut is copied once). Guarded by mu.
+	seenFiles := make(map[string]struct{})
 	queue := newWorkQueue[task]()
 
 	var lastNotifyNs int64
@@ -314,6 +365,39 @@ func (s *Scanner) Scan(ctx context.Context, rootID, rootName string) (*ScanResul
 			var localFiles []*FileNode
 			var localFolders []*FolderNode
 			for _, ch := range children {
+				if IsShortcut(ch) {
+					// Follow the shortcut: copy the target contents.
+					if ch.ShortcutDetails == nil {
+						atomic.AddInt64(&shortcutsSkipped, 1)
+						continue
+					}
+					target, terr := s.client.GetFile(ctx, ch.ShortcutDetails.TargetId)
+					if terr != nil || IsShortcut(target) {
+						atomic.AddInt64(&shortcutsSkipped, 1)
+						continue
+					}
+					if IsFolder(target) {
+						sub := &FolderNode{
+							ID:       target.Id,
+							Name:     ch.Name,
+							ParentID: t.folder.ID,
+							Path:     t.folder.Path + "/" + ch.Name,
+						}
+						localFolders = append(localFolders, sub)
+					} else {
+						f := &FileNode{
+							ID:       target.Id,
+							Name:     ch.Name,
+							Size:     target.Size,
+							MD5:      target.Md5Checksum,
+							ParentID: t.folder.ID,
+							Path:     t.folder.Path + "/" + ch.Name,
+						}
+						localFiles = append(localFiles, f)
+					}
+					atomic.AddInt64(&shortcutsFollowed, 1)
+					continue
+				}
 				if IsFolder(ch) {
 					sub := &FolderNode{
 						ID:       ch.Id,
@@ -336,25 +420,42 @@ func (s *Scanner) Scan(ctx context.Context, rootID, rootName string) (*ScanResul
 			}
 
 			// Single lock per folder: collect local data, then merge once.
+			// Folders and files are deduplicated by source ID, which also
+			// protects against shortcut cycles (each ID is visited once).
+			var addFolders []*FolderNode
+			var addFiles []*FileNode
 			mu.Lock()
 			for _, sub := range localFolders {
+				if _, exists := res.Folders[sub.ID]; exists {
+					atomic.AddInt64(&shortcutDupes, 1)
+					continue
+				}
 				res.Folders[sub.ID] = sub
+				addFolders = append(addFolders, sub)
 			}
-			res.Files = append(res.Files, localFiles...)
-			t.folder.FileCount = len(localFiles)
+			for _, f := range localFiles {
+				if _, exists := seenFiles[f.ID]; exists {
+					atomic.AddInt64(&shortcutDupes, 1)
+					continue
+				}
+				seenFiles[f.ID] = struct{}{}
+				addFiles = append(addFiles, f)
+			}
+			res.Files = append(res.Files, addFiles...)
+			t.folder.FileCount = len(addFiles)
 			mu.Unlock()
 
-			atomic.AddInt64(&filesCnt, int64(len(localFiles)))
-			atomic.AddInt64(&foldersCnt, int64(len(localFolders)))
+			atomic.AddInt64(&filesCnt, int64(len(addFiles)))
+			atomic.AddInt64(&foldersCnt, int64(len(addFolders)))
 			localBytes := int64(0)
-			for _, f := range localFiles {
+			for _, f := range addFiles {
 				localBytes += f.Size
 			}
 			atomic.AddInt64(&bytesCnt, localBytes)
 			notify(false)
 
 			// Enqueue nested folders.
-			for _, sub := range localFolders {
+			for _, sub := range addFolders {
 				if !queue.Enqueue(task{folder: sub}) {
 					return
 				}
@@ -380,6 +481,9 @@ func (s *Scanner) Scan(ctx context.Context, rootID, rootName string) (*ScanResul
 	}
 
 	res.TotalBytes = atomic.LoadInt64(&bytesCnt)
+	res.ShortcutsFollowed = atomic.LoadInt64(&shortcutsFollowed)
+	res.ShortcutsSkipped = atomic.LoadInt64(&shortcutsSkipped)
+	res.ShortcutDuplicates = atomic.LoadInt64(&shortcutDupes)
 
 	// Populate subtree TotalFiles for skip-empty logic.
 	computeSubtreeCounts(res)
@@ -429,4 +533,3 @@ func (r *ScanResult) EmptyFoldersCount() int {
 	}
 	return n
 }
-

@@ -143,9 +143,13 @@ func runSingleSubFolder(
 	if err != nil {
 		return fmt.Errorf("resolve sub_folder: %w", err)
 	}
-	subInfo, err := client.GetFile(ctx, subID)
+	subInfo, err := client.ResolveFolder(ctx, subID)
 	if err != nil {
 		return fmt.Errorf("get sub_folder info: %w", err)
+	}
+	if subInfo.Id != subID {
+		fmt.Printf("      • %s is a shortcut, following it to the real folder\n", subID)
+		subID = subInfo.Id
 	}
 	fmt.Printf("      ✓ %q  (id: %s)\n", subInfo.Name, subID)
 	targetSubName := subInfo.Name + cfg.Options.TargetSubfolderPostfix
@@ -186,6 +190,15 @@ func runSingleSubFolder(
 	fmt.Printf("      ✓ Folders: %d  (empty: %d)  Files: %d  Size: %s  in %s\n",
 		len(scan.Folders), emptyFolders, totalFiles,
 		formatBytes(scan.TotalBytes), time.Since(scanStart).Round(time.Second))
+	if scan.ShortcutsFollowed > 0 {
+		fmt.Printf("      • Shortcuts followed: %d (target contents will be copied)\n", scan.ShortcutsFollowed)
+	}
+	if scan.ShortcutsSkipped > 0 {
+		fmt.Printf("      • Shortcuts skipped: %d (broken target or no access)\n", scan.ShortcutsSkipped)
+	}
+	if scan.ShortcutDuplicates > 0 {
+		fmt.Printf("      • Duplicate shortcut targets: %d (already in the tree, copied once)\n", scan.ShortcutDuplicates)
+	}
 	fmt.Println()
 
 	if totalFiles == 0 {
@@ -477,6 +490,11 @@ func runDirectCopyWithoutScan(
 	queue := []folderPair{{srcID: subID, dstID: targetRootID, path: sourceName}}
 	discoveredFiles := int64(0)
 	discoveredBytes := int64(0)
+	skippedShortcuts := int64(0)
+	followedShortcuts := int64(0)
+	dupShortcuts := int64(0)
+	// visited protects against shortcut cycles and duplicate targets.
+	visited := map[string]struct{}{subID: {}}
 	colorMarked := false
 
 	for len(queue) > 0 {
@@ -498,7 +516,56 @@ func runDirectCopyWithoutScan(
 		batchBytes := int64(0)
 		for _, ch := range children {
 			childPath := current.path + "/" + ch.Name
+			if drive.IsShortcut(ch) {
+				// Follow the shortcut: copy the target contents.
+				if ch.ShortcutDetails == nil {
+					skippedShortcuts++
+					continue
+				}
+				target, terr := client.GetFile(ctx, ch.ShortcutDetails.TargetId)
+				if terr != nil || drive.IsShortcut(target) {
+					skippedShortcuts++
+					continue
+				}
+				if _, seen := visited[target.Id]; seen {
+					dupShortcuts++
+					continue
+				}
+				visited[target.Id] = struct{}{}
+				if drive.IsFolder(target) {
+					newID, err := client.CreateFolder(ctx, current.dstID, ch.Name)
+					if err != nil {
+						spinner.Finish()
+						return fmt.Errorf("create folder %q: %w", childPath, err)
+					}
+					queue = append(queue, folderPair{
+						srcID: target.Id,
+						dstID: newID,
+						path:  childPath,
+					})
+				} else {
+					f := &drive.FileNode{
+						ID:       target.Id,
+						Name:     ch.Name,
+						Size:     target.Size,
+						MD5:      target.Md5Checksum,
+						ParentID: current.srcID,
+						Path:     childPath,
+					}
+					discoveredFiles++
+					discoveredBytes += target.Size
+					batchBytes += target.Size
+					tasks = append(tasks, drive.CopyTask{File: f, TargetParentID: current.dstID})
+				}
+				followedShortcuts++
+				continue
+			}
 			if drive.IsFolder(ch) {
+				if _, seen := visited[ch.Id]; seen {
+					dupShortcuts++
+					continue
+				}
+				visited[ch.Id] = struct{}{}
 				newID, err := client.CreateFolder(ctx, current.dstID, ch.Name)
 				if err != nil {
 					spinner.Finish()
@@ -562,6 +629,15 @@ func runDirectCopyWithoutScan(
 
 	spinner.Finish()
 	elapsed := time.Since(copyStart).Round(time.Second)
+	if followedShortcuts > 0 {
+		fmt.Printf("→ Shortcuts followed: %d (target contents copied)\n", followedShortcuts)
+	}
+	if skippedShortcuts > 0 {
+		fmt.Printf("→ Shortcuts skipped: %d (broken target or no access)\n", skippedShortcuts)
+	}
+	if dupShortcuts > 0 {
+		fmt.Printf("→ Duplicate targets ignored: %d (already copied once)\n", dupShortcuts)
+	}
 	if discoveredFiles == 0 {
 		fmt.Println("Nothing to copy. Exit.")
 		return nil
@@ -760,6 +836,12 @@ func runEstimateOnly(
 	fmt.Printf("      ✓ %q\n", subName)
 	fmt.Printf("      ✓ Folders: %d  Files: %d  Size: %s  in %s\n",
 		estimate.Folders, estimate.Files, formatBytes(estimate.Bytes), time.Since(start).Round(time.Second))
+	if estimate.ShortcutsFollowed > 0 {
+		fmt.Printf("      • Shortcuts followed: %d (target contents counted)\n", estimate.ShortcutsFollowed)
+	}
+	if estimate.ShortcutsSkipped > 0 {
+		fmt.Printf("      • Shortcuts skipped: %d (broken target or no access)\n", estimate.ShortcutsSkipped)
+	}
 	fmt.Println()
 	fmt.Println("Estimate mode — exiting before any modifications.")
 	return nil
