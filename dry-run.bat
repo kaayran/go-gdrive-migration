@@ -13,7 +13,7 @@ if not exist ".\dist\%APP_EXE%" (
 
 echo Running dry-run mode...
 echo.
-".\dist\%APP_EXE%" --config config.yaml --dry-run %*
+".\dist\%APP_EXE%" --config config.yaml --no-pause --dry-run %*
 set "ERR=%ERRORLEVEL%"
 
 echo.

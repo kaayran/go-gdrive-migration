@@ -160,6 +160,7 @@ func runLocalUpload(ctx context.Context, cfg *config.Config, client *drive.Clien
 			entry.Status = manifest.StatusFailed
 			entry.Error = r.Error.Error()
 			atomic.AddInt64(&failedFiles, 1)
+			reporter.AppendError(r.Task.File.Path, r.Error)
 		default:
 			entry.Status = manifest.StatusDone
 			atomic.AddInt64(&uploadedFiles, 1)

@@ -13,7 +13,7 @@ if not exist ".\dist\%APP_EXE%" (
 
 echo Running %APP_NAME%...
 echo.
-".\dist\%APP_EXE%" --config config.yaml %*
+".\dist\%APP_EXE%" --config config.yaml --no-pause %*
 set "ERR=%ERRORLEVEL%"
 
 echo.

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"sync/atomic"
 	"strings"
 	"time"
@@ -322,6 +323,7 @@ func runSingleSubFolder(
 			entry.Status = manifest.StatusFailed
 			entry.Error = r.Error.Error()
 			atomic.AddInt64(&failedFiles, 1)
+			reporter.AppendError(r.Task.File.Path, r.Error)
 		default:
 			entry.Status = manifest.StatusDone
 			atomic.AddInt64(&copiedFiles, 1)
@@ -477,6 +479,7 @@ func runDirectCopyWithoutScan(
 			entry.Status = manifest.StatusFailed
 			entry.Error = r.Error.Error()
 			atomic.AddInt64(&failedFiles, 1)
+			reporter.AppendError(r.Task.File.Path, r.Error)
 		default:
 			entry.Status = manifest.StatusDone
 			atomic.AddInt64(&copiedFiles, 1)
@@ -745,6 +748,10 @@ func printMiniReport(r copyReport, runErr error) {
 
 type runReportWriter struct {
 	path string
+
+	errMu      sync.Mutex
+	errPath    string
+	errCreated bool
 }
 
 func newRunReportWriter(manifestPath string) (*runReportWriter, error) {
@@ -762,7 +769,33 @@ func newRunReportWriter(manifestPath string) (*runReportWriter, error) {
 	if err := os.WriteFile(path, []byte(header), 0o644); err != nil {
 		return nil, fmt.Errorf("create run report file: %w", err)
 	}
-	return &runReportWriter{path: path}, nil
+	errPath := filepath.Join(reportsDir, fmt.Sprintf("run-errors-%s.txt", ts))
+	return &runReportWriter{path: path, errPath: errPath}, nil
+}
+
+// AppendError appends a single error line into a separate
+// reports/run-errors-<ts>.txt file (created lazily on first error).
+func (w *runReportWriter) AppendError(context string, err error) {
+	if w == nil || err == nil {
+		return
+	}
+	w.errMu.Lock()
+	defer w.errMu.Unlock()
+	flags := os.O_APPEND | os.O_WRONLY
+	if !w.errCreated {
+		flags = os.O_CREATE | os.O_APPEND | os.O_WRONLY
+	}
+	f, ferr := os.OpenFile(w.errPath, flags, 0o644)
+	if ferr != nil {
+		return
+	}
+	defer f.Close()
+	if !w.errCreated {
+		header := fmt.Sprintf("go-gdrive-migration run errors\ncreated_at: %s\n\n", time.Now().Format(time.RFC3339))
+		_, _ = f.WriteString(header)
+		w.errCreated = true
+	}
+	_, _ = f.WriteString(fmt.Sprintf("[%s] %s: %v\n", time.Now().Format(time.RFC3339), context, err))
 }
 
 func (w *runReportWriter) Path() string {

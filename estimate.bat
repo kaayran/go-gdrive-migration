@@ -13,7 +13,7 @@ if not exist ".\dist\%APP_EXE%" (
 
 echo Running estimate mode...
 echo.
-".\dist\%APP_EXE%" --config config.yaml --estimate %*
+".\dist\%APP_EXE%" --config config.yaml --no-pause --estimate %*
 set "ERR=%ERRORLEVEL%"
 
 echo.
